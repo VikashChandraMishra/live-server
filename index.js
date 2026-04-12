@@ -15,8 +15,63 @@ const server = http.createServer((req, res) => {
             if (!fs.existsSync(filePath)) {
                 filePath = path.join(baseDir, 'index.htm');
                 if (!fs.existsSync(filePath)) {
-                    res.writeHead(404, { 'Content-Type': 'text/plain' });
-                    res.end('Not Found');
+                    const baseDirectoryitems = fs.readdirSync(baseDir, { withFileTypes: true });
+                    let data = fs.readFileSync(path.join(baseDir, 'fallback.html'), 'utf-8');
+
+                    let html = "";
+
+                    for (let item of baseDirectoryitems) {
+                        if (item.isDirectory()) {
+                            html += `<div class="item dir">📁 ${item.name}</div>`;
+                        } else if (item.isFile()) {
+                            html += `<div class="item file">📄 ${item.name}</div>`;
+                        } else {
+                            html += `<div class="item other">❓ ${item.name}</div>`;
+                        }
+                    }
+
+                    html = `
+                        <style>
+                        .container {
+                            max-width: 800px;
+                            margin: 40px auto;
+                            font-family: system-ui, sans-serif;
+                        }
+
+                        .item {
+                            padding: 10px 14px;
+                            border-bottom: 1px solid #eee;
+                        }
+
+                        .item:hover {
+                            background: #f5f5f5;
+                            cursor: pointer;
+                        }
+
+                        .dir {
+                            font-weight: 600;
+                            color: #2c3e50;
+                        }
+
+                        .file {
+                            color: #555;
+                        }
+
+                        .other {
+                            color: #999;
+                            font-style: italic;
+                        }
+                        </style>
+
+                        <div class="container">
+                            <h2>Directory Listing</h2>
+                            ${html}
+                        </div>
+                        `;
+
+                    data = data.replace('{{contents}}', html);
+                    res.writeHead(404, { 'Content-Type': 'text/html' });
+                    res.end(data);
                     return;
                 }
             }

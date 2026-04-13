@@ -1,3 +1,4 @@
 .env
 test-dir/
 index.html
+node_modules/

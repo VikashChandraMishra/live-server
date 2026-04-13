@@ -1,6 +1,8 @@
 const http = require('http');
+const WebSocket = require('ws');
 const path = require('path');
 const fs = require('fs');
+const chokidar = require('chokidar');
 const { METHOD } = require('./constants');
 
 const port = process.env.PORT || 5500;
@@ -68,14 +70,26 @@ const server = http.createServer((req, res) => {
                             ${html}
                         </div>
                         `;
-
                     data = data.replace('{{contents}}', html);
                     res.writeHead(404, { 'Content-Type': 'text/html' });
                     res.end(data);
                     return;
                 }
             }
-            const data = fs.readFileSync(filePath);
+
+            let data = fs.readFileSync(filePath, 'utf-8');
+            data = data.replace(
+                '</body>',
+                `<script>
+                    const ws = new WebSocket('ws://localhost:5500');
+                    ws.onmessage = (event) => {
+                        if (event.data == 'change') {
+                            location.reload();                        
+                        }
+                    };
+                </script></body>`
+            );
+
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(data);
             return;
@@ -84,6 +98,7 @@ const server = http.createServer((req, res) => {
 
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('Forbidden');
+    return;
 });
 
 server.listen(port, () => {
@@ -92,4 +107,21 @@ server.listen(port, () => {
 
 server.on('error', (err) => {
     console.error('Server error:', err.message);
+});
+
+const wss = new WebSocket.Server({ server });
+
+const clients = new Set();
+
+wss.on('connection', (ws) => {
+    console.log('client connected');
+    clients.add(ws);
+    ws.send('server connected');
+    ws.on('close', () => clients.delete(ws));
+});
+
+chokidar.watch(baseDir).on('all', (event, path) => {
+    for (const ws of clients) {
+        ws.send(event);
+    }
 });

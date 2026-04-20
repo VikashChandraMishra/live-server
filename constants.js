@@ -37,3 +37,26 @@ export const CONTENT_TYPE = {
 };
 
 export const DEFAULT_CONTENT_TYPE = "application/octet-stream";
+
+export const MEDIA_EXTENSIONS = [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".ico",
+    ".avif",
+    ".svg",
+    ".mp3",
+    ".wav",
+    ".ogg",
+    ".mp4",
+    ".webm",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".otf",
+    ".pdf",
+    ".zip",
+    ".wasm",
+];

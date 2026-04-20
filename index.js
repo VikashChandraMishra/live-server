@@ -3,7 +3,7 @@ const WebSocket = require('ws');
 const path = require('path');
 const fs = require('fs');
 const chokidar = require('chokidar');
-const { METHOD, CONTENT_TYPE } = require('./constants');
+const { METHOD, CONTENT_TYPE, MEDIA_EXTENSIONS } = require('./constants');
 const { renderDirectoriesAndFiles, attachWebsocketClientToHTML, renderFallbackPage } = require('./util');
 
 const port = process.env.PORT || 5500;
@@ -61,7 +61,9 @@ const server = http.createServer((req, res) => {
 
             const extName = path.extname(filePath).toLowerCase();
 
-            let data = fs.readFileSync(filePath, 'utf-8');
+            const data = MEDIA_EXTENSIONS.includes(extName)
+                ? fs.readFileSync(filePath)           // Buffer (binary)
+                : fs.readFileSync(filePath, 'utf-8'); // string (text)
 
             if ([CONTENT_TYPE['.html'], CONTENT_TYPE['.htm']].includes(extName)) {
                 data = attachWebsocketClientToHTML(data);

@@ -16,7 +16,16 @@ const fallbackPageHtml = fs.readFileSync(path.join(process.cwd(), 'fallback.html
 
 const server = http.createServer((req, res) => {
     const { method, url } = req;
-    let filePath = path.join(baseDir, req.url === '/' ? 'index.html' : req.url);
+    let filePath = path.resolve(baseDir, '.' + (req.url === '/' ? '/index.html' : req.url));
+
+    // Block path traversal: after `..` segments are resolved, the final path
+    // must still live under baseDir. The trailing separator prevents sibling
+    // prefixes (e.g. `D:\app-secrets`) from passing a check against `D:\app`.
+    if (filePath !== baseDir && !filePath.startsWith(baseDir + path.sep)) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('Forbidden');
+        return;
+    }
 
     if (method == METHOD.GET) {
         if (url == '/') {

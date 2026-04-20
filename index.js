@@ -8,7 +8,7 @@ const { METHOD } = require('./constants');
 const port = process.env.PORT || 5500;
 const baseDir = process.argv[2] ? path.resolve(process.argv[2]) : process.cwd();
 
-const baseDirectoryitems = fs.readdirSync(baseDir, { withFileTypes: true });
+let baseDirectoryitems = fs.readdirSync(baseDir, { withFileTypes: true });
 
 const server = http.createServer((req, res) => {
     const { method, url } = req;
@@ -35,7 +35,7 @@ const server = http.createServer((req, res) => {
 
                     data = data.replace('{{contents}}', html); data = data.replace(
                         '</body>',
-                            `<script>
+                        `<script>
                                 const ws = new WebSocket('ws://localhost:5500');
                                 ws.onmessage = (event) => {
                                     if (event.data == 'change') {
@@ -57,7 +57,7 @@ const server = http.createServer((req, res) => {
                 `<script>
                     const ws = new WebSocket('ws://localhost:5500');
                     ws.onmessage = (event) => {
-                        if (event.data == 'change') {
+                        if (event.data) {
                             location.reload();                        
                         }
                     };
@@ -94,7 +94,8 @@ wss.on('connection', (ws) => {
     ws.on('close', () => clients.delete(ws));
 });
 
-chokidar.watch(baseDir).on('all', (event, path) => {
+chokidar.watch(baseDir).on('all', (event, filePath) => {
+    baseDirectoryitems = fs.readdirSync(baseDir, { withFileTypes: true });
     for (const ws of clients) {
         ws.send(event);
     }

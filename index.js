@@ -4,11 +4,15 @@ const path = require('path');
 const fs = require('fs');
 const chokidar = require('chokidar');
 const { METHOD } = require('./constants');
+const { renderDirectoriesAndFiles, attachWebsocketClientToHTML, renderFallbackPage } = require('./util');
 
 const port = process.env.PORT || 5500;
 const baseDir = process.argv[2] ? path.resolve(process.argv[2]) : process.cwd();
 
 let baseDirectoryitems = fs.readdirSync(baseDir, { withFileTypes: true });
+
+// TODO: Decide how to handle the path to the fallback page
+const fallbackPageHtml = fs.readFileSync(path.join(process.cwd(), 'fallback.html'), 'utf-8');
 
 const server = http.createServer((req, res) => {
     const { method, url } = req;
@@ -19,32 +23,7 @@ const server = http.createServer((req, res) => {
             if (!fs.existsSync(filePath)) {
                 filePath = path.join(baseDir, 'index.htm');
                 if (!fs.existsSync(filePath)) {
-                    let data = fs.readFileSync(path.join(baseDir, 'fallback.html'), 'utf-8');
-
-                    let html = "";
-
-                    for (let item of baseDirectoryitems) {
-                        if (item.isDirectory()) {
-                            html += `<div class="item dir">📁 ${item.name}</div>`;
-                        } else if (item.isFile()) {
-                            html += `<div class="item file">📄 ${item.name}</div>`;
-                        } else {
-                            html += `<div class="item other">❓ ${item.name}</div>`;
-                        }
-                    }
-
-                    data = data.replace('{{contents}}', html); data = data.replace(
-                        '</body>',
-                        `<script>
-                                const ws = new WebSocket('ws://localhost:5500');
-                                ws.onmessage = (event) => {
-                                    if (event.data == 'change') {
-                                        location.reload();                        
-                                    }
-                                };
-                            </script>
-                        </body>`
-                    );
+                    const data = renderFallbackPage(fallbackPageHtml, path.dirname(filePath));
                     res.writeHead(404, { 'Content-Type': 'text/html' });
                     res.end(data);
                     return;
@@ -52,17 +31,27 @@ const server = http.createServer((req, res) => {
             }
 
             let data = fs.readFileSync(filePath, 'utf-8');
-            data = data.replace(
-                '</body>',
-                `<script>
-                    const ws = new WebSocket('ws://localhost:5500');
-                    ws.onmessage = (event) => {
-                        if (event.data) {
-                            location.reload();                        
-                        }
-                    };
-                </script></body>`
-            );
+            data = attachWebsocketClientToHTML(data);
+
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(data);
+            return;
+        } else {
+            // Render the fallback either if the filepath is incorrect or points to a directory
+            if (!fs.existsSync(filePath)) {
+                const data = renderFallbackPage(fallbackPageHtml, path.dirname(filePath));
+                res.writeHead(404, { 'Content-Type': 'text/html' });
+                res.end(data);
+                return;
+            } else if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+                const data = renderFallbackPage(fallbackPageHtml, filePath);
+                res.writeHead(404, { 'Content-Type': 'text/html' });
+                res.end(data);
+                return;
+            }
+
+            let data = fs.readFileSync(filePath, 'utf-8');
+            data = attachWebsocketClientToHTML(data);
 
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(data);

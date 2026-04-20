@@ -4,9 +4,20 @@ const path = require('path');
 const fs = require('fs');
 const chokidar = require('chokidar');
 const { METHOD, CONTENT_TYPE, MEDIA_EXTENSIONS } = require('./constants');
-const { renderDirectoriesAndFiles, attachWebsocketClientToHTML, renderFallbackPage } = require('./util');
+const { renderDirectoriesAndFiles, attachWebsocketClientToHTML, renderFallbackPage, validatePort } = require('./util');
 
-const port = process.env.PORT || 5500;
+const portArgIndex = process.argv.indexOf("--port");
+const portArg = portArgIndex !== -1 ? process.argv[portArgIndex + 1] : undefined;
+
+if (portArg !== undefined) {
+    const { ok, error } = validatePort(portArg);
+    if (!ok) {
+        console.error("Invalid port:", error);
+        process.exit(1);
+    }
+}
+
+const port = portArg ?? process.env.PORT ?? 5500;
 const baseDir = process.argv[2] ? path.resolve(process.argv[2]) : process.cwd();
 
 let baseDirectoryitems = fs.readdirSync(baseDir, { withFileTypes: true });

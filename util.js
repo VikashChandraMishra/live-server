@@ -39,3 +39,17 @@ export const renderFallbackPage = (fallbackPageHtml, dirName) => {
     data = attachWebsocketClientToHTML(data);
     return data;
 };
+
+export const validatePort = (port) => {
+    const portNumber = Number(port);
+
+    if (!Number.isInteger(portNumber)) {
+        return { ok: false, error: "Port must be an integer" };
+    }
+
+    if (portNumber < 3000 || portNumber > 9000) {
+        return { ok: false, error: "Port must be between 3000 and 9000" };
+    }
+
+    return { ok: true };
+};

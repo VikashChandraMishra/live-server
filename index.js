@@ -32,6 +32,7 @@ if (portArg !== undefined) {
 
 const host = hostArg ?? '127.0.0.1';
 const port = portArg ?? process.env.PORT ?? 5500;
+const noOpen = process.argv.includes("--no-open");
 const baseDir = process.argv[2] ? path.resolve(process.argv[2]) : process.cwd();
 
 let baseDirectoryitems = fs.readdirSync(baseDir, { withFileTypes: true });
@@ -137,7 +138,10 @@ server.listen(port, host, () => {
     try {
         const { address } = server.address();
         let starterUrl = `http://${['::', '[::]'].includes(address) ? '[::1]' : '127.0.0.1'}:${port}`;
-        openURL(starterUrl);
+
+        if (!noOpen) {
+            openURL(starterUrl);
+        }
     } catch (error) {
         console.log(error);
     }

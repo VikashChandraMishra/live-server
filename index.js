@@ -1,10 +1,23 @@
-const http = require('http');
-const WebSocket = require('ws');
-const path = require('path');
-const fs = require('fs');
-const chokidar = require('chokidar');
-const { METHOD, CONTENT_TYPE, MEDIA_EXTENSIONS } = require('./constants');
-const { renderDirectoriesAndFiles, attachWebsocketClientToHTML, renderFallbackPage, validatePort } = require('./util');
+import http from 'http';
+import { WebSocketServer } from 'ws';
+import path from 'path';
+import fs from 'fs';
+import { spawn } from 'child_process';
+import chokidar from 'chokidar';
+import { METHOD, CONTENT_TYPE, MEDIA_EXTENSIONS } from './constants.js';
+import { renderDirectoriesAndFiles, attachWebsocketClientToHTML, renderFallbackPage, validatePort } from './util.js';
+import { validateHost } from './validateHost.js';
+
+const hostArgIndex = process.argv.indexOf("--host");
+const hostArg = hostArgIndex !== -1 ? process.argv[hostArgIndex + 1] : undefined;
+
+if (hostArg !== undefined) {
+    const { ok, error } = await validateHost(hostArg);
+    if (!ok) {
+        console.error("Invalid host:", error);
+        process.exit(1);
+    }
+}
 
 const portArgIndex = process.argv.indexOf("--port");
 const portArg = portArgIndex !== -1 ? process.argv[portArgIndex + 1] : undefined;
@@ -17,6 +30,7 @@ if (portArg !== undefined) {
     }
 }
 
+const host = hostArg ?? '127.0.0.1';
 const port = portArg ?? process.env.PORT ?? 5500;
 const baseDir = process.argv[2] ? path.resolve(process.argv[2]) : process.cwd();
 
@@ -91,15 +105,51 @@ const server = http.createServer((req, res) => {
     return;
 });
 
-server.listen(port, () => {
-    console.log("Server listening on port ", port);
-});
+const openURL = (url) => {
+    let command, args;
 
+    if (process.platform === "win32") {
+        command = "cmd";
+        args = ["/c", "start", "", url];
+    } else if (process.platform === "darwin") {
+        command = "open";
+        args = [url];
+    } else {
+        command = "xdg-open";
+        args = [url];
+    }
+
+    const child = spawn(command, args, {
+        detached: true,
+        stdio: "ignore"
+    });
+
+    child.on("error", (err) => {
+        console.error("Failed to open browser:", err.message);
+        console.log("Fallback: please open this URL manually:");
+        console.log(url);
+    });
+
+    child.unref();
+};
+
+server.listen(port, host, () => {
+    try {
+        const { address } = server.address();
+        let starterUrl = `http://${['::', '[::]'].includes(address) ? '[::1]' : '127.0.0.1'}:${port}`;
+        openURL(starterUrl);
+    } catch (error) {
+        console.log(error);
+    }
+
+    console.log(`Server listening on http://${host}:${port}`);
+});
+``
 server.on('error', (err) => {
     console.error('Server error:', err.message);
 });
 
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocketServer({ server });
 
 const clients = new Set();
 

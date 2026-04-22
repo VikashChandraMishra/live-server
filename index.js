@@ -5,35 +5,28 @@ import fs from 'fs';
 import { spawn } from 'child_process';
 import chokidar from 'chokidar';
 import { METHOD, CONTENT_TYPE, MEDIA_EXTENSIONS } from './constants.js';
-import { renderDirectoriesAndFiles, attachWebsocketClientToHTML, renderFallbackPage, validatePort } from './util.js';
-import { validateHost } from './validateHost.js';
+import { renderDirectoriesAndFiles, attachWebsocketClientToHTML, renderFallbackPage, isArg } from './util.js';
+import { extractFlags, validateFlags } from './cli-parser.js';
 
-const hostArgIndex = process.argv.indexOf("--host");
-const hostArg = hostArgIndex !== -1 ? process.argv[hostArgIndex + 1] : undefined;
-
-if (hostArg !== undefined) {
-    const { ok, error } = await validateHost(hostArg);
-    if (!ok) {
-        console.error("Invalid host:", error);
-        process.exit(1);
-    }
+const extracted = extractFlags(process.argv);
+if (!extracted.ok) {
+    console.error(extracted.error);
+    process.exit(1);
 }
 
-const portArgIndex = process.argv.indexOf("--port");
-const portArg = portArgIndex !== -1 ? process.argv[portArgIndex + 1] : undefined;
-
-if (portArg !== undefined) {
-    const { ok, error } = validatePort(portArg);
-    if (!ok) {
-        console.error("Invalid port:", error);
-        process.exit(1);
-    }
+const validated = await validateFlags(extracted.value);
+if (!validated.ok) {
+    console.error(validated.error);
+    process.exit(1);
 }
+
+const { host: hostArg, port: portArg, noOpen: noOpenArg, open: openArg } = extracted.value;
 
 const host = hostArg ?? '127.0.0.1';
 const port = portArg ?? process.env.PORT ?? 5500;
-const noOpen = process.argv.includes("--no-open");
-const baseDir = process.argv[2] ? path.resolve(process.argv[2]) : process.cwd();
+const noOpen = noOpenArg ?? false;
+const openPath = openArg ?? '/';
+const baseDir = process.argv[2] && !isArg(process.argv[2]) ? path.resolve(process.argv[2]) : process.cwd();
 
 let baseDirectoryitems = fs.readdirSync(baseDir, { withFileTypes: true });
 
@@ -137,7 +130,7 @@ const openURL = (url) => {
 server.listen(port, host, () => {
     try {
         const { address } = server.address();
-        let starterUrl = `http://${['::', '[::]'].includes(address) ? '[::1]' : '127.0.0.1'}:${port}`;
+        let starterUrl = `http://${['::', '[::]'].includes(address) ? '[::1]' : '127.0.0.1'}:${port}${openPath}`;
 
         if (!noOpen) {
             openURL(starterUrl);

@@ -53,3 +53,43 @@ export const validatePort = (port) => {
 
     return { ok: true };
 };
+
+export const isArg = (str) => {
+    return str.startsWith("--");
+};
+
+export const validateOpenPath = (openPath) => {
+    if (typeof openPath !== "string" || openPath.trim() === "") {
+        return { ok: false, error: "Path must be a non-empty string" };
+    }
+
+    if (/[\x00-\x1F\x7F]/.test(openPath)) {
+        return { ok: false, error: "Path must not contain control characters" };
+    }
+
+    if (openPath.includes("\\")) {
+        return { ok: false, error: "Path must use forward slashes, not backslashes" };
+    }
+
+    if (openPath.startsWith("//")) {
+        return { ok: false, error: "Path must not be protocol-relative" };
+    }
+
+    if (/^[a-zA-Z][a-zA-Z0-9+.\-]*:/.test(openPath)) {
+        return { ok: false, error: "Path must not include a URL scheme or drive letter" };
+    }
+
+    if (openPath.includes("@")) {
+        return { ok: false, error: "Path must not contain userinfo (@)" };
+    }
+
+    if (!openPath.startsWith("/")) {
+        return { ok: false, error: "Path must start with '/'" };
+    }
+
+    if (openPath.split("/").includes("..")) {
+        return { ok: false, error: "Path must not contain '..' segments" };
+    }
+
+    return { ok: true };
+};

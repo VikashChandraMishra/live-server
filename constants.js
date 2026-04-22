@@ -60,3 +60,12 @@ export const MEDIA_EXTENSIONS = [
     ".zip",
     ".wasm",
 ];
+
+export const FLAG_SCHEMAS = {
+    "--port": { type: 'number', name: 'port' },
+    "--host": { type: 'string', name: 'host' },
+    "--open": { type: 'string', name: 'open' },
+    "--no-open": { type: null, name: 'noOpen' },
+};
+
+export const FLAGS = Object.keys(FLAG_SCHEMAS);

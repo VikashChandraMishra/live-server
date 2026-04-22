@@ -1,6 +1,6 @@
 import { FLAG_SCHEMAS, FLAGS } from "./constants.js";
-import { validatePort, validateOpenPath } from "./util.js";
-import { validateHost } from "./validateHost.js";
+import { validatePort, validateOpenPath, isArg } from "./util.js";
+import { validateHost } from "./validate-host.js";
 
 const isValidFlag = (arg) => {
     if (!arg.startsWith("--")) {
@@ -11,7 +11,7 @@ const isValidFlag = (arg) => {
 };
 
 export const tokenizer = (args) => {
-    const flagArgs = args.slice(2);
+    const flagArgs = isArg(process.argv[2]) ? args.slice(2) : args.slice(3);
     const argMap = {};
     let i = 0;
 

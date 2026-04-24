@@ -1,4 +1,5 @@
 import fs from "fs";
+import path from "path";
 
 export const renderDirectoriesAndFiles = (items) => {
     let html = "";
@@ -23,8 +24,18 @@ export const attachWebsocketClientToHTML = (html) => {
             <script>
                 const ws = new WebSocket('ws://localhost:5500');
                 ws.onmessage = (event) => {
-                    if (event.data == 'change') {
+                    const data = JSON.parse(event.data);
+
+                    if (data.event == 'change') {
                         location.reload();                        
+                    } else if (data.event == 'css-update') {
+                        const links = document.querySelectorAll('link[rel="stylesheet"]');
+                        for (const link of links) {
+                            if (new URL(link.href).pathname === data.file) {
+                                link.href = data.file + '?t=' + Date.now();
+                                break;
+                            }
+                        }
                     }
                 };
             </script>
@@ -33,7 +44,7 @@ export const attachWebsocketClientToHTML = (html) => {
 };
 
 export const renderFallbackPage = (fallbackPageHtml, dirName) => {
-    let items = fs.readdirSync(dirName, { withFileTypes: true });
+    let items = fs.existsSync(dirName) ? fs.readdirSync(dirName, { withFileTypes: true }) : [];
     let html = renderDirectoriesAndFiles(items);
     let data = fallbackPageHtml.replace('{{contents}}', html);
     data = attachWebsocketClientToHTML(data);
@@ -92,4 +103,17 @@ export const validateOpenPath = (openPath) => {
     }
 
     return { ok: true };
+};
+
+// Different HTML files may use:
+// <link href="../styles/main.css">
+// <link href="/styles/main.css">
+// <link href="styles/main.css"></link>
+// But in the browser, all of these resolve to the same absolute URL:
+// /styles/main.css
+
+export const filePathToUrl = (baseDir, filePath) => {
+    const relativePath = path.relative(baseDir, filePath);
+
+    return "/" + relativePath.split(path.sep).join("/");
 };

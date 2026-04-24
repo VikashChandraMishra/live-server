@@ -5,7 +5,7 @@ import fs from 'fs';
 import { spawn } from 'child_process';
 import chokidar from 'chokidar';
 import { METHOD, CONTENT_TYPE, MEDIA_EXTENSIONS } from './constants.js';
-import { renderDirectoriesAndFiles, attachWebsocketClientToHTML, renderFallbackPage, isArg } from './util.js';
+import { renderDirectoriesAndFiles, attachWebsocketClientToHTML, renderFallbackPage, isArg, filePathToUrl } from './util.js';
 import { extractFlags, validateFlags } from './cli-parser.js';
 
 const extracted = extractFlags(process.argv);
@@ -35,7 +35,8 @@ const fallbackPageHtml = fs.readFileSync(path.join(process.cwd(), 'fallback.html
 
 const server = http.createServer((req, res) => {
     const { method, url } = req;
-    let filePath = path.resolve(baseDir, '.' + (req.url === '/' ? '/index.html' : req.url));
+    const pathname = url.split('?')[0];
+    let filePath = path.resolve(baseDir, '.' + (pathname === '/' ? '/index.html' : pathname));
 
     // Block path traversal: after `..` segments are resolved, the final path
     // must still live under baseDir. The trailing separator prevents sibling
@@ -67,7 +68,7 @@ const server = http.createServer((req, res) => {
         } else {
             // Render the fallback either if the filepath is incorrect or points to a directory
             if (!fs.existsSync(filePath)) {
-                const data = renderFallbackPage(fallbackPageHtml, path.dirname(filePath));
+                const data = renderFallbackPage(fallbackPageHtml, baseDir);
                 res.writeHead(404, { 'Content-Type': 'text/html' });
                 res.end(data);
                 return;
@@ -153,13 +154,23 @@ const clients = new Set();
 wss.on('connection', (ws) => {
     console.log('client connected');
     clients.add(ws);
-    ws.send('server connected');
+    ws.send(JSON.stringify({ event: 'server connected' }));
     ws.on('close', () => clients.delete(ws));
 });
 
 chokidar.watch(baseDir).on('all', (event, filePath) => {
+    const relativeFilePath = filePathToUrl(baseDir, filePath);
+    const isCssUpdate = path.extname(relativeFilePath) === ".css";
     baseDirectoryitems = fs.readdirSync(baseDir, { withFileTypes: true });
+
     for (const ws of clients) {
-        ws.send(event);
+        if (isCssUpdate) {
+            ws.send(JSON.stringify({
+                event: "css-update",
+                file: relativeFilePath
+            }));
+        } else {
+            ws.send(JSON.stringify({ event: "change" }));
+        }
     }
 });

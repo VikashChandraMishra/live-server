@@ -34,6 +34,8 @@ let baseDirectoryitems = fs.readdirSync(baseDir, { withFileTypes: true });
 const fallbackPageHtml = fs.readFileSync(path.join(process.cwd(), 'fallback.html'), 'utf-8');
 
 const server = http.createServer((req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+
     const { method, url } = req;
     const pathname = url.split('?')[0];
     let filePath = path.resolve(baseDir, '.' + (pathname === '/' ? '/index.html' : pathname));
@@ -52,7 +54,7 @@ const server = http.createServer((req, res) => {
             if (!fs.existsSync(filePath)) {
                 filePath = path.join(baseDir, 'index.htm');
                 if (!fs.existsSync(filePath)) {
-                    const data = renderFallbackPage(fallbackPageHtml, path.dirname(filePath));
+                    const data = renderFallbackPage(fallbackPageHtml, path.dirname(filePath), '/');
                     res.writeHead(404, { 'Content-Type': 'text/html' });
                     res.end(data);
                     return;
@@ -68,30 +70,32 @@ const server = http.createServer((req, res) => {
         } else {
             // Render the fallback either if the filepath is incorrect or points to a directory
             if (!fs.existsSync(filePath)) {
-                const data = renderFallbackPage(fallbackPageHtml, baseDir);
+                const data = renderFallbackPage(fallbackPageHtml, baseDir, '/');
                 res.writeHead(404, { 'Content-Type': 'text/html' });
                 res.end(data);
                 return;
-            } else if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
-                const data = renderFallbackPage(fallbackPageHtml, filePath);
-                res.writeHead(404, { 'Content-Type': 'text/html' });
+            } else if (fs.existsSync(filePath)) {
+                if (fs.statSync(filePath).isDirectory()) {
+                    const data = renderFallbackPage(fallbackPageHtml, filePath, pathname);
+                    res.writeHead(404, { 'Content-Type': 'text/html' });
+                    res.end(data);
+                    return;
+                }
+
+                const extName = path.extname(filePath).toLowerCase();
+
+                let data = MEDIA_EXTENSIONS.includes(extName)
+                    ? fs.readFileSync(filePath)           // Buffer (binary)
+                    : fs.readFileSync(filePath, 'utf-8'); // string (text)
+
+                if (['.html', '.htm'].includes(extName)) {
+                    data = attachWebsocketClientToHTML(data);
+                }
+
+                res.writeHead(200, { 'Content-Type': CONTENT_TYPE[extName] || DEFAULT_CONTENT_TYPE });
                 res.end(data);
                 return;
             }
-
-            const extName = path.extname(filePath).toLowerCase();
-
-            let data = MEDIA_EXTENSIONS.includes(extName)
-                ? fs.readFileSync(filePath)           // Buffer (binary)
-                : fs.readFileSync(filePath, 'utf-8'); // string (text)
-
-            if (['.html', '.htm'].includes(extName)) {
-                data = attachWebsocketClientToHTML(data);
-            }
-
-            res.writeHead(200, { 'Content-Type': CONTENT_TYPE[extName] || DEFAULT_CONTENT_TYPE });
-            res.end(data);
-            return;
         }
     }
 

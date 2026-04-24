@@ -1,16 +1,19 @@
 import fs from "fs";
 import path from "path";
 
-export const renderDirectoriesAndFiles = (items) => {
+export const renderDirectoriesAndFiles = (items, urlPrefix) => {
+    const base = urlPrefix.endsWith("/") ? urlPrefix : urlPrefix + "/";
+    const linkStyle = `style="text-decoration: none; color: inherit;"`;
     let html = "";
 
     for (let item of items) {
+        const encoded = encodeURIComponent(item.name);
         if (item.isDirectory()) {
-            html += `<div class="item dir">📁 ${item.name}</div>`;
+            html += `<div class="item dir"><a href="${base}${encoded}/" ${linkStyle}>📁 ${item.name}</a></div>`;
         } else if (item.isFile()) {
-            html += `<div class="item file">📄 ${item.name}</div>`;
+            html += `<div class="item file"><a href="${base}${encoded}" ${linkStyle}>📄 ${item.name}</a></div>`;
         } else {
-            html += `<div class="item other">❓ ${item.name}</div>`;
+            html += `<div class="item other"><a href="${base}${encoded}" ${linkStyle}>❓ ${item.name}</a></div>`;
         }
     }
 
@@ -43,9 +46,9 @@ export const attachWebsocketClientToHTML = (html) => {
     );
 };
 
-export const renderFallbackPage = (fallbackPageHtml, dirName) => {
+export const renderFallbackPage = (fallbackPageHtml, dirName, urlPrefix) => {
     let items = fs.existsSync(dirName) ? fs.readdirSync(dirName, { withFileTypes: true }) : [];
-    let html = renderDirectoriesAndFiles(items);
+    let html = renderDirectoriesAndFiles(items, urlPrefix);
     let data = fallbackPageHtml.replace('{{contents}}', html);
     data = attachWebsocketClientToHTML(data);
     return data;

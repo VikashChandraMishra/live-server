@@ -53,6 +53,10 @@ export const tokenizer = (args) => {
 };
 
 export const extractFlags = (args) => {
+    if (args.length == 2) {
+        return { ok: true, value: { host: undefined, port: undefined, noOpen: undefined, open: undefined } };
+    }
+
     const result = tokenizer(args);
     if (!result.ok) return result;
 

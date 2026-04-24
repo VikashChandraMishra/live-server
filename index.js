@@ -144,7 +144,12 @@ server.listen(port, host, () => {
 });
 ``
 server.on('error', (err) => {
-    console.error('Server error:', err.message);
+    if (err.code === 'EADDRINUSE') {
+        console.error(`Port ${port} is already in use`);
+    } else {
+        console.error('Server error:', err.message);
+    }
+    process.exit(1);
 });
 
 const wss = new WebSocketServer({ server });

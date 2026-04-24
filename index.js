@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { spawn } from 'child_process';
 import chokidar from 'chokidar';
-import { METHOD, CONTENT_TYPE, MEDIA_EXTENSIONS } from './constants.js';
+import { METHOD, CONTENT_TYPE, MEDIA_EXTENSIONS, DEFAULT_CONTENT_TYPE } from './constants.js';
 import { renderDirectoriesAndFiles, attachWebsocketClientToHTML, renderFallbackPage, isArg, filePathToUrl } from './util.js';
 import { extractFlags, validateFlags } from './cli-parser.js';
 
@@ -81,11 +81,11 @@ const server = http.createServer((req, res) => {
 
             const extName = path.extname(filePath).toLowerCase();
 
-            const data = MEDIA_EXTENSIONS.includes(extName)
+            let data = MEDIA_EXTENSIONS.includes(extName)
                 ? fs.readFileSync(filePath)           // Buffer (binary)
                 : fs.readFileSync(filePath, 'utf-8'); // string (text)
 
-            if ([CONTENT_TYPE['.html'], CONTENT_TYPE['.htm']].includes(extName)) {
+            if (['.html', '.htm'].includes(extName)) {
                 data = attachWebsocketClientToHTML(data);
             }
 

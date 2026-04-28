@@ -1,12 +1,13 @@
-import http from 'http';
-import { WebSocketServer } from 'ws';
-import path from 'path';
-import fs from 'fs';
 import { spawn } from 'child_process';
 import chokidar from 'chokidar';
-import { METHOD, CONTENT_TYPE, MEDIA_EXTENSIONS, DEFAULT_CONTENT_TYPE } from './constants.js';
-import { renderDirectoriesAndFiles, attachWebsocketClientToHTML, renderFallbackPage, isArg, filePathToUrl } from './util.js';
+import fs from 'fs';
+import http from 'http';
+import path from 'path';
+import { pathToFileURL } from 'url';
+import { WebSocketServer } from 'ws';
 import { extractFlags, validateFlags } from './cli-parser.js';
+import { CONTENT_TYPE, DEFAULT_CONTENT_TYPE, DEFAULT_WATCHER_IGNORED, MEDIA_EXTENSIONS, METHOD } from './constants.js';
+import { attachWebsocketClientToHTML, filePathToUrl, isArg, loadWatcherIgnore, renderFallbackPage } from './util.js';
 
 const extracted = extractFlags(process.argv);
 if (!extracted.ok) {
@@ -26,15 +27,20 @@ const host = hostArg ?? '127.0.0.1';
 const port = portArg ?? process.env.PORT ?? 5500;
 const noOpen = noOpenArg ?? false;
 const openPath = openArg ?? '/';
-const baseDir = process.argv[2] && !isArg(process.argv[2]) ? path.resolve(process.argv[2]) : process.cwd();
 
+const baseDir = process.argv[2] && !isArg(process.argv[2]) ? path.resolve(process.argv[2]) : process.cwd();
 let baseDirectoryitems = fs.readdirSync(baseDir, { withFileTypes: true });
+const config = baseDirectoryitems.find(
+    (item) => item.isFile() && item.name === 'live-server.config.js'
+);
+let watcherIgnoredFiles = await loadWatcherIgnore(config);
+watcherIgnoredFiles = watcherIgnoredFiles.length > 0 ? watcherIgnoredFiles : DEFAULT_WATCHER_IGNORED;
 
 // TODO: Decide how to handle the path to the fallback page
 const fallbackPageHtml = fs.readFileSync(path.join(process.cwd(), 'fallback.html'), 'utf-8');
 
 const server = http.createServer((req, res) => {
-    res.setHeader('Cache-Control', 'no-store')
+    res.setHeader('Cache-Control', 'no-store');
 
     const { method, url } = req;
     const pathname = url.split('?')[0];
@@ -100,7 +106,7 @@ const server = http.createServer((req, res) => {
     }
 
     res.writeHead(403, { 'Content-Type': 'text/plain' });
-    res.end('Forbidden');
+    res.end('Forbidden: Method not allowed');
     return;
 });
 
@@ -167,19 +173,22 @@ wss.on('connection', (ws) => {
     ws.on('close', () => clients.delete(ws));
 });
 
-chokidar.watch(baseDir).on('all', (event, filePath) => {
-    const relativeFilePath = filePathToUrl(baseDir, filePath);
-    const isCssUpdate = path.extname(relativeFilePath) === ".css";
-    baseDirectoryitems = fs.readdirSync(baseDir, { withFileTypes: true });
+chokidar.watch(baseDir, {
+    ignored: watcherIgnoredFiles
+})
+    .on('all', (event, filePath) => {
+        const relativeFilePath = filePathToUrl(baseDir, filePath);
+        const isCssUpdate = path.extname(relativeFilePath) === ".css";
+        baseDirectoryitems = fs.readdirSync(baseDir, { withFileTypes: true });
 
-    for (const ws of clients) {
-        if (isCssUpdate) {
-            ws.send(JSON.stringify({
-                event: "css-update",
-                file: relativeFilePath
-            }));
-        } else {
-            ws.send(JSON.stringify({ event: "change" }));
+        for (const ws of clients) {
+            if (isCssUpdate) {
+                ws.send(JSON.stringify({
+                    event: "css-update",
+                    file: relativeFilePath
+                }));
+            } else {
+                ws.send(JSON.stringify({ event: "change" }));
+            }
         }
-    }
-});
+    });

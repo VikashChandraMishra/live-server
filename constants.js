@@ -69,3 +69,40 @@ export const FLAG_SCHEMAS = {
 };
 
 export const FLAGS = Object.keys(FLAG_SCHEMAS);
+
+export const DEFAULT_WATCHER_IGNORED = [
+    // Package managers / deps
+    '**/node_modules/**',
+    '**/.pnpm/**',
+    '**/.yarn/**',
+
+    // VCS
+    '**/.git/**',
+    '**/.hg/**',
+    '**/.svn/**',
+
+    // Build outputs
+    '**/dist/**',
+    '**/build/**',
+    '**/out/**',
+    '**/.next/**',
+    '**/.nuxt/**',
+    '**/.cache/**',
+    '**/.turbo/**',
+
+    // Logs
+    '**/*.log',
+
+    // OS junk
+    '**/.DS_Store',
+    '**/Thumbs.db',
+
+    // Editors
+    '**/.vscode/**',
+    '**/.idea/**',
+
+    // Temp files
+    '**/*.tmp',
+    '**/*.swp',
+    '**/*~'
+];

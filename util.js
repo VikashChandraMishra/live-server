@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { pathToFileURL } from 'url';
 
 export const renderDirectoriesAndFiles = (items, urlPrefix) => {
     const base = urlPrefix.endsWith("/") ? urlPrefix : urlPrefix + "/";
@@ -119,4 +120,37 @@ export const filePathToUrl = (baseDir, filePath) => {
     const relativePath = path.relative(baseDir, filePath);
 
     return "/" + relativePath.split(path.sep).join("/");
+};
+
+
+export const loadWatcherIgnore = async (configMeta) => {
+    if (!configMeta?.parentPath || !configMeta?.name) {
+        return [];
+    }
+
+    const fullPath = path.resolve(configMeta.parentPath, configMeta.name);
+
+    if (!fs.existsSync(fullPath)) {
+        return [];
+    }
+
+    try {
+        // Convert to file URL + cache bust (optional but useful for live reload)
+        const fileUrl = pathToFileURL(fullPath).href + `?t=${Date.now()}`;
+        const module = await import(fileUrl);
+
+        // Normalize export (ESM + CJS)
+        const config = 'default' in module ? module.default : module;
+        const ignored = config?.watch?.ignore;
+
+        if (!ignored) return [];
+
+        if (Array.isArray(ignored)) return ignored;
+
+        return [ignored];
+
+    } catch (err) {
+        console.warn(`Failed to load config from ${fullPath}:`, err.message);
+        return [];
+    }
 };

@@ -15,8 +15,6 @@ export default {
         ignore: ['node_modules', '.git', 'dist', '**/*.log'],  // glob patterns the file watcher skips
     },
 
-    spa: true,                                           // return index.html for unknown routes (SPA fallback)
-
     proxy: {
         '/api': {
             target: 'https://api.example.com',           // backend origin to forward to

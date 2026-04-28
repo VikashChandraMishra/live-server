@@ -154,3 +154,33 @@ export const loadWatcherIgnore = async (configMeta) => {
         return [];
     }
 };
+
+export const loadProxy = (configMeta) => {
+    if (!configMeta?.parentPath || !configMeta?.name) {
+        return [];
+    }
+
+    const fullPath = path.resolve(configMeta.parentPath, configMeta.name);
+
+    if (!fs.existsSync(fullPath)) {
+        return [];
+    }
+
+    try {
+        const fileUrl = pathToFileURL(fullPath).href + `?t=${Date.now()}`;
+        const module = await import(fileUrl);
+
+        const config = 'default' in module ? module.default : module;
+        const proxy = config?.watch?.proxy;
+
+        if (!proxy) return null;
+        if (typeof proxy === 'object' && proxy !== null)
+            return proxy;
+
+        return null;
+
+    } catch (err) {
+        console.warn(`Failed to load config from ${fullPath}:`, err.message);
+        return [];
+    }
+};
